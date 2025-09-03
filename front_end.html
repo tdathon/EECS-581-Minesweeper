@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 10x10 Grid</title>
+<style>
+    body {
+        font-family: Courier New;
+        text-align: left;
+        margin-top: 10px;
+    }
+
+    #game-board {
+        display: grid;
+        grid-template-columns: repeat(10, 40px);
+        grid-template-rows: repeat(10, 40px);
+        gap: 2px;
+        margin: 0 auto;
+    }
+
+    .cell {
+        width: 40px;
+        height: 40px;
+        background-color: #ccc;
+        border: 1px solid #999;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        font-weight: bold;
+    }
+
+    .cell.clicked {
+        background-color: #eee;
+    }
+</style>
+</head>
+<body>
+
+<h1>Minesweeper 10x10 Grid</h1>
+<div id="game-board"></div>
+
+<script>
+const BOARD_SIZE = 10;
+const board = document.getElementById('game-board');
+
+// Create 10x10 cells
+for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.row = row;
+        cell.dataset.col = col;
+
+        // Add click event
+        cell.addEventListener('click', () => {
+            cell.classList.add('clicked');
+            console.log(`Clicked cell at row ${row}, col ${col}`);
+        });
+
+        board.appendChild(cell);
+    }
+}
+</script>
+
+</body>
+</html>
