@@ -30,33 +30,111 @@
         font-weight: bold;
     }
 
-    .cell.clicked {
+    .cell.clicked{
         background-color: #eee;
     }
+/*  Darker gray color block hasn't been revealed or flagged*/
+  .cell.covered{
+        background-color: #ccc;
+    }
+/*  Lighter gray when block revealed*/
+  .cell.revealed{
+        background-color: #eee; cursor: default; 
+    }
+/*  Blue when flagged*/
+  .cell.flagged{
+        background-color: #cfd8ff; 
+    }
+/*  Focus ring on clicked block*/
+  .cell:focus{
+        outline: 2px solid black;
+    } 
+
 </style>
 </head>
 <body>
 
 <h1>Minesweeper 10x10 Grid</h1>
+<!--Display in game status bar with game status, mine count and flag count-->
+<div id="status">
+  Status: Playing | Mines: <span id="mines">10</span> | Flags left:
+  <span id="flags">10</span>
+</div>
+
 <div id="game-board"></div>
 
 <script>
 const BOARD_SIZE = 10;
+/*  10 mines until mine select feature is setup*/
+const MINES_TOTAL = 10;
+let flagsPlaced = 0;
+
 const board = document.getElementById('game-board');
+/*Create reference to mines element*/
+const mines_ele = document.getElementById('mines');
+/*create reference to flags element*/
+const flags_ele = document.getElementById('flags');
+/*make total mines 10*/
+mines_ele.textContent = MINES_TOTAL;
+/*make flags equal to mines total minus every flag put down*/
+flags_ele.textContent = MINES_TOTAL - flagsPlaced;
+
 
 // Create 10x10 cells
 for (let row = 0; row < BOARD_SIZE; row++) {
     for (let col = 0; col < BOARD_SIZE; col++) {
         const cell = document.createElement('div');
-        cell.classList.add('cell');
+        cell.classList.add('cell', 'covered');
         cell.dataset.row = row;
         cell.dataset.col = col;
+        cell.tabIndex= 0;
 
-        // Add click event
+        //Left Click listener
         cell.addEventListener('click', () => {
-            cell.classList.add('clicked');
-            console.log(`Clicked cell at row ${row}, col ${col}`);
+            //if flagged don't make left click 'revealed'
+            if (cell.classList.contains('flagged')) return;
+            //if not covered(so if revealed) don't make left click revealed
+            if (!cell.classList.contains('covered')) return;
+            //if current state of cell is covered remove it
+            cell.classList.remove('covered');
+            //make current state revealed
+            cell.classList.add('revealed');
+            //number can be inserted into cell later
+            cell.textContent = '';
+            //log in console what row and column has been revealed
+            console.log(`reveal row ${row}, col ${col}`);
         });
+        //right click to flag or unflag(if already flagged)
+        cell.addEventListener('contextmenu', (e) => {
+            //need event e to prevent normal right click showing options on browser like copy, paste, etc
+            e.preventDefault();
+            //if its revealed we can't flag cell
+            if (cell.classList.contains('revealed')) return; 
+            //if flag should be added is true for if isnt flagged. false for already flagged
+            const shouldAddFlag = !cell.classList.contains('flagged');
+            //if flag should be added
+            if (shouldAddFlag) {
+                //make cell flagged
+                cell.classList.add('flagged');
+                //label cell as flagged for gui
+                cell.textContent = 'F';
+                //increase total flags placed
+                flagsPlaced++;
+            //if flag shouldn't be placed and right click was done on an already flagged cell
+            }else {
+                //remove flagged status
+                cell.classList.remove('flagged');
+                //remove gui flagged label
+                cell.textContent = '';
+                //decrease total flags placed
+                flagsPlaced--;
+            }
+            //status bar flag number updated
+            flags_ele.textContent = MINES_TOTAL - flagsPlaced;
+            //displays to console whether flag was added or removed in grid location
+            console.log(`${shouldAddFlag ? 'Flag' : 'Unflag'} row ${row}, col ${col}`);
+      });
+
 
         board.appendChild(cell);
     }
