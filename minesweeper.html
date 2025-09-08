@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Minesweeper 10x10 Grid</title>
+<style>
+  body {
+    font-family: Courier New;
+    margin-top: 10px;
+  }
+  #game-board {
+    display: grid;
+    grid-template-columns: repeat(10, 40px);
+    grid-template-rows: repeat(10, 40px);
+    gap: 2px;
+    margin: 0 auto;
+  }
+  .cell {
+    width: 40px;
+    height: 40px;
+    background-color: #ccc;
+    border: 1px solid #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    font-weight: bold;
+  }
+  .cell.covered { background-color: #ccc; }
+  .cell.revealed { background-color: #eee; cursor: default; }
+  .cell.flagged { background-color: #cfd8ff; }
+  .cell.flag-icon { background-color: #cfd8ff; color: red; font-size: 20px; }
+  .cell.mine { background-color: #ffb3b3; color: black; }
+  .cell:focus { outline: 2px solid black; }
+</style>
+</head>
+<body>
+<h1>Minesweeper 10x10 Grid</h1>
+<div id="status">
+  Status: Playing | Mines: <span id="mines">10</span> | Flags left: <span id="flags">10</span>
+</div>
+<div id="game-board"></div>
+<script>
+const BOARD_SIZE = 10;
+const MINES_TOTAL = 10;
+let flagsPlaced = 0;
+let firstClick = true;
+let minesPlaced = false;
+let minePositions = new Set();
+
+const board = document.getElementById('game-board');
+const mines_ele = document.getElementById('mines');
+const flags_ele = document.getElementById('flags');
+
+mines_ele.textContent = MINES_TOTAL;
+flags_ele.textContent = MINES_TOTAL - flagsPlaced;
+
+function placeMines(excludeRow, excludeCol) {
+  while (minePositions.size < MINES_TOTAL) {
+    let r = Math.floor(Math.random() * BOARD_SIZE);
+    let c = Math.floor(Math.random() * BOARD_SIZE);
+    if (r === excludeRow && c === excludeCol) continue; // never place on first click
+    minePositions.add(`${r},${c}`);
+  }
+  minesPlaced = true;
+}
+
+for (let row = 0; row < BOARD_SIZE; row++) {
+  for (let col = 0; col < BOARD_SIZE; col++) {
+    const cell = document.createElement('div');
+    cell.classList.add('cell', 'covered');
+    cell.dataset.row = row;
+    cell.dataset.col = col;
+    cell.tabIndex = 0;
+
+    // Left click
+    cell.addEventListener('click', () => {
+      if (cell.classList.contains('flagged') || !cell.classList.contains('covered')) return;
+      if (firstClick) {
+        placeMines(row, col);
+        firstClick = false;
+        console.log('Mines placed:', minePositions);
+      }
+      cell.classList.remove('covered');
+      cell.classList.add('revealed');
+
+      // Show mine if this cell is a mine
+      if (minePositions.has(`${row},${col}`)) {
+        cell.classList.add('mine');
+        cell.textContent = '💣';
+        console.log(`BOOM! Hit a mine at row ${row}, col ${col}`);
+      } else {
+        cell.textContent = '';
+        console.log(`reveal row ${row}, col ${col}`);
+      }
+    });
+
+    // Right click
+    cell.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (cell.classList.contains('revealed')) return;
+      const shouldAddFlag = !cell.classList.contains('flagged');
+      if (shouldAddFlag) {
+        cell.classList.add('flagged', 'flag-icon');
+        cell.textContent = '⚑';
+        flagsPlaced++;
+      } else {
+        cell.classList.remove('flagged', 'flag-icon');
+        cell.textContent = '';
+        flagsPlaced--;
+      }
+      flags_ele.textContent = MINES_TOTAL - flagsPlaced;
+      console.log(`${shouldAddFlag ? 'Flag' : 'Unflag'} row ${row}, col ${col}`);
+    });
+
+    board.appendChild(cell);
+  }
+}
+</script>
+</body>
+</html>
