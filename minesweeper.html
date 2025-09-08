@@ -66,6 +66,68 @@ function placeMines(excludeRow, excludeCol) {
   minesPlaced = true;
 }
 
+function isInBounds(r, c) {
+  return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+}
+function isMine(r, c) {
+  return minePositions.has(`${r},${c}`);
+}
+function getCell(r, c) {
+  return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+}
+function countAdjacentMines(r, c) {
+  let count = 0;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr, nc = c + dc;
+      if (isInBounds(nr, nc) && isMine(nr, nc)) count++;
+    }
+  }
+  return count;
+}
+/** Reveal a safe region using flood fill (iterative). Reveals numbers and blanks. */
+function floodReveal(startR, startC) {
+  const stack = [[startR, startC]];
+  const visited = new Set();
+
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    const key = `${r},${c}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+
+    if (!isInBounds(r, c)) continue;
+    if (isMine(r, c)) continue; // safety guard; we only flood safe cells
+
+    const cell = getCell(r, c);
+    if (!cell) continue;
+    if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) continue;
+
+    cell.classList.remove('covered');
+    cell.classList.add('revealed');
+
+    const adj = countAdjacentMines(r, c);
+    if (adj > 0) {
+      cell.textContent = adj;
+      console.log(`reveal row ${r}, col ${c} (${adj})`);
+      // stop flood at numbered cells
+      continue;
+    } else {
+      cell.textContent = '';
+      console.log(`reveal row ${r}, col ${c}`);
+      // add neighbors to stack to continue flood
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (isInBounds(nr, nc)) stack.push([nr, nc]);
+        }
+      }
+    }
+  }
+}
+
 for (let row = 0; row < BOARD_SIZE; row++) {
   for (let col = 0; col < BOARD_SIZE; col++) {
     const cell = document.createElement('div');
@@ -82,17 +144,16 @@ for (let row = 0; row < BOARD_SIZE; row++) {
         firstClick = false;
         console.log('Mines placed:', minePositions);
       }
-      cell.classList.remove('covered');
-      cell.classList.add('revealed');
 
       // Show mine if this cell is a mine
       if (minePositions.has(`${row},${col}`)) {
-        cell.classList.add('mine');
+        cell.classList.remove('covered');
+        cell.classList.add('revealed', 'mine');
         cell.textContent = '💣';
         console.log(`BOOM! Hit a mine at row ${row}, col ${col}`);
       } else {
-        cell.textContent = '';
-        console.log(`reveal row ${row}, col ${col}`);
+        // Recursively reveal contiguous empty cells and bordering numbers
+        floodReveal(row, col);
       }
     });
 
