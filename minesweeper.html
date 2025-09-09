@@ -4,74 +4,114 @@
 <meta charset="UTF-8" />
 <title>Minesweeper 10x10 Grid</title>
 <style>
-  body {
-    font-family: Courier New;
-    margin-top: 10px;
+  :root { --cell: 40px; }
+  body { font-family: "Courier New", monospace; margin: 24px; }
+  h1 { margin: 0 0 8px 0; }
+
+  /* Controls */
+  #controls {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    margin: 8px 0 10px;
   }
+  #controls label { font-weight: 700; }
+  #controls input[type="number"] { width: 80px; padding: 4px 6px; }
+  #controls button {
+    padding: 6px 12px; border: 1px solid #333; background: #f4f4f4; cursor: pointer;
+    border-radius: 6px;
+  }
+  #controls button:disabled { opacity: .6; cursor: not-allowed; }
+
+  /* Status row */
+  #status { margin: 6px 0 14px; }
+  #state.playing { color: #0a7f00; font-weight: 700; }
+  #state.lost { color: #b00000; font-weight: 700; }
+  #state.won { color: #005fb0; font-weight: 700; }
+
+  /* Board */
   #game-board {
     display: grid;
-    grid-template-columns: repeat(10, 40px);
-    grid-template-rows: repeat(10, 40px);
-    gap: 2px;
-    margin: 0 auto;
+    grid-template-columns: repeat(10, var(--cell));
+    grid-template-rows: repeat(10, var(--cell));
+    gap: 2px; margin-top: 6px; width: max-content;
   }
   .cell {
-    width: 40px;
-    height: 40px;
-    background-color: #ccc;
-    border: 1px solid #999;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    user-select: none;
+    width: var(--cell); height: var(--cell);
+    background: #ccc; border: 1px solid #999; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; user-select: none;
     font-weight: bold;
   }
   .cell.covered { background-color: #ccc; }
   .cell.revealed { background-color: #eee; cursor: default; }
   .cell.flagged { background-color: #cfd8ff; }
-  .cell.flag-icon { background-color: #cfd8ff; color: red; font-size: 20px; }
+  .cell.flag-icon { color: red; font-size: 20px; }
   .cell.mine { background-color: #ffb3b3; color: black; }
   .cell:focus { outline: 2px solid black; }
 </style>
 </head>
 <body>
+
 <h1>Minesweeper 10x10 Grid</h1>
-<div id="status">
-  Status: Playing | Mines: <span id="mines">10</span> | Flags left: <span id="flags">10</span>
+
+<!-- NEW: tiny control panel -->
+<div id="controls">
+  <label for="mineRange">Bombs:</label>
+  <input id="mineRange" type="range" min="1" value="10">
+  <input id="mineNumber" type="number" min="1" value="10">
+  <button id="startBtn">Start Game</button>
+  <button id="resetBtn" disabled>Reset</button>
 </div>
+
+<div id="status">
+  Status: <span id="state">Not started</span>
+  | Mines: <span id="mines">0</span>
+  | Flags left: <span id="flags">0</span>
+</div>
+
 <div id="game-board"></div>
+
 <script>
-const BOARD_SIZE = 10;
-const MINES_TOTAL = 10;
+/* === Config === */
+const BOARD_SIZE = 10;                          // 10x10 fixed grid for now
+const MAX_MINES = BOARD_SIZE * BOARD_SIZE - 1;  // keep at least 1 safe cell
+
+/* === DOM === */
+const board    = document.getElementById('game-board');
+const minesEl  = document.getElementById('mines');
+const flagsEl  = document.getElementById('flags');
+const stateEl  = document.getElementById('state');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const mineRange  = document.getElementById('mineRange');
+const mineNumber = document.getElementById('mineNumber');
+
+/* Range/number bounds */
+mineRange.max = MAX_MINES;
+mineNumber.max = MAX_MINES;
+
+/* === Game state === */
+let minesTotal = 10;
 let flagsPlaced = 0;
 let firstClick = true;
 let minesPlaced = false;
+let gameOver = true;
+let revealedCount = 0;
 let minePositions = new Set();
 
-const board = document.getElementById('game-board');
-const mines_ele = document.getElementById('mines');
-const flags_ele = document.getElementById('flags');
-
-mines_ele.textContent = MINES_TOTAL;
-flags_ele.textContent = MINES_TOTAL - flagsPlaced;
-
-function placeMines(excludeRow, excludeCol) {
-  while (minePositions.size < MINES_TOTAL) {
-    let r = Math.floor(Math.random() * BOARD_SIZE);
-    let c = Math.floor(Math.random() * BOARD_SIZE);
-    if (r === excludeRow && c === excludeCol) continue; // never place on first click
-    minePositions.add(`${r},${c}`);
-  }
-  minesPlaced = true;
+/* === Helpers === */
+function setStatus(text, cls='') {
+  stateEl.textContent = text;
+  stateEl.className = cls;
+}
+function updateCounters() {
+  minesEl.textContent = minesTotal;
+  flagsEl.textContent = minesTotal - flagsPlaced;
 }
 
 function isInBounds(r, c) {
   return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
 }
-function isMine(r, c) {
-  return minePositions.has(`${r},${c}`);
-}
+function getKey(r, c){ return `${r},${c}`; }
+function isMine(r, c) { return minePositions.has(getKey(r,c)); }
 function getCell(r, c) {
   return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
 }
@@ -86,98 +126,177 @@ function countAdjacentMines(r, c) {
   }
   return count;
 }
-/** Reveal a safe region using flood fill (iterative). Reveals numbers and blanks. */
+
+function placeMines(excludeRow, excludeCol) {
+  while (minePositions.size < minesTotal) {
+    const r = Math.floor(Math.random() * BOARD_SIZE);
+    const c = Math.floor(Math.random() * BOARD_SIZE);
+    if (r === excludeRow && c === excludeCol) continue; // first click is safe
+    minePositions.add(getKey(r, c));
+  }
+  minesPlaced = true;
+}
+
+function revealMines() {
+  minePositions.forEach(key => {
+    const [r,c] = key.split(',').map(Number);
+    const cell = getCell(r,c);
+    if (!cell.classList.contains('revealed')) {
+      cell.classList.remove('covered');
+      cell.classList.add('revealed','mine');
+      cell.textContent = '💣';
+    }
+  });
+}
+
+/** Flood-fill reveal. Returns how many NEW cells were revealed. */
 function floodReveal(startR, startC) {
   const stack = [[startR, startC]];
   const visited = new Set();
+  let newlyRevealed = 0;
 
   while (stack.length) {
     const [r, c] = stack.pop();
-    const key = `${r},${c}`;
-    if (visited.has(key)) continue;
+    const key = getKey(r,c);
+    if (visited.has(key) || !isInBounds(r,c) || isMine(r,c)) continue;
     visited.add(key);
 
-    if (!isInBounds(r, c)) continue;
-    if (isMine(r, c)) continue; // safety guard; we only flood safe cells
-
     const cell = getCell(r, c);
-    if (!cell) continue;
-    if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) continue;
+    if (!cell || cell.classList.contains('revealed') || cell.classList.contains('flagged')) continue;
 
     cell.classList.remove('covered');
     cell.classList.add('revealed');
+    newlyRevealed++;
 
     const adj = countAdjacentMines(r, c);
-    if (adj > 0) {
-      cell.textContent = adj;
-      console.log(`reveal row ${r}, col ${c} (${adj})`);
-      // stop flood at numbered cells
-      continue;
-    } else {
-      cell.textContent = '';
-      console.log(`reveal row ${r}, col ${c}`);
-      // add neighbors to stack to continue flood
+    cell.textContent = adj > 0 ? adj : '';
+
+    if (adj === 0) {
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
           if (dr === 0 && dc === 0) continue;
-          const nr = r + dr, nc = c + dc;
-          if (isInBounds(nr, nc)) stack.push([nr, nc]);
+          stack.push([r + dr, c + dc]);
         }
       }
     }
   }
+  return newlyRevealed;
 }
 
-for (let row = 0; row < BOARD_SIZE; row++) {
-  for (let col = 0; col < BOARD_SIZE; col++) {
-    const cell = document.createElement('div');
-    cell.classList.add('cell', 'covered');
-    cell.dataset.row = row;
-    cell.dataset.col = col;
-    cell.tabIndex = 0;
-
-    // Left click
-    cell.addEventListener('click', () => {
-      if (cell.classList.contains('flagged') || !cell.classList.contains('covered')) return;
-      if (firstClick) {
-        placeMines(row, col);
-        firstClick = false;
-        console.log('Mines placed:', minePositions);
-      }
-
-      // Show mine if this cell is a mine
-      if (minePositions.has(`${row},${col}`)) {
-        cell.classList.remove('covered');
-        cell.classList.add('revealed', 'mine');
-        cell.textContent = '💣';
-        console.log(`BOOM! Hit a mine at row ${row}, col ${col}`);
-      } else {
-        // Recursively reveal contiguous empty cells and bordering numbers
-        floodReveal(row, col);
-      }
-    });
-
-    // Right click
-    cell.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      if (cell.classList.contains('revealed')) return;
-      const shouldAddFlag = !cell.classList.contains('flagged');
-      if (shouldAddFlag) {
-        cell.classList.add('flagged', 'flag-icon');
-        cell.textContent = '⚑';
-        flagsPlaced++;
-      } else {
-        cell.classList.remove('flagged', 'flag-icon');
-        cell.textContent = '';
-        flagsPlaced--;
-      }
-      flags_ele.textContent = MINES_TOTAL - flagsPlaced;
-      console.log(`${shouldAddFlag ? 'Flag' : 'Unflag'} row ${row}, col ${col}`);
-    });
-
-    board.appendChild(cell);
+function checkWin() {
+  const safeCells = BOARD_SIZE * BOARD_SIZE - minesTotal;
+  if (revealedCount >= safeCells) {
+    gameOver = true;
+    setStatus('You won!', 'won');
+    revealMines(); // optional: show where they were
   }
 }
+
+/* === Build / Reset === */
+function buildBoard() {
+  board.innerHTML = '';
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell','covered');
+      cell.dataset.row = row;
+      cell.dataset.col = col;
+      cell.tabIndex = 0;
+
+      // Left click (reveal)
+      cell.addEventListener('click', () => {
+        if (gameOver) return;
+        if (cell.classList.contains('flagged') || !cell.classList.contains('covered')) return;
+
+        if (firstClick && !minesPlaced) {
+          placeMines(row, col);
+          firstClick = false;
+        }
+
+        if (isMine(row, col)) {
+          cell.classList.remove('covered');
+          cell.classList.add('revealed','mine');
+          cell.textContent = '💣';
+          gameOver = true;
+          setStatus('Game over', 'lost');
+          revealMines();
+        } else {
+          revealedCount += floodReveal(row, col);
+          checkWin();
+        }
+      });
+
+      // Right click (flag)
+      cell.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (gameOver) return;
+        if (cell.classList.contains('revealed')) return;
+
+        const add = !cell.classList.contains('flagged');
+        if (add) {
+          if (flagsPlaced >= minesTotal) return; // no more flags
+          cell.classList.add('flagged','flag-icon');
+          cell.textContent = '⚑';
+          flagsPlaced++;
+        } else {
+          cell.classList.remove('flagged','flag-icon');
+          cell.textContent = '';
+          flagsPlaced--;
+        }
+        updateCounters();
+      });
+
+      board.appendChild(cell);
+    }
+  }
+}
+
+function startGame() {
+  // sanitize mine count
+  let m = parseInt(mineNumber.value, 10);
+  if (isNaN(m) || m < 1) m = 1;
+  if (m > MAX_MINES) m = MAX_MINES;
+  mineRange.value = mineNumber.value = m;
+
+  minesTotal   = m;
+  flagsPlaced  = 0;
+  firstClick   = true;
+  minesPlaced  = false;
+  gameOver     = false;
+  revealedCount = 0;
+  minePositions.clear();
+
+  updateCounters();
+  setStatus('Playing', 'playing');
+  buildBoard();
+
+  resetBtn.disabled = false;
+}
+
+function resetGame() {
+  // keep same minesTotal; just rebuild fresh
+  startGame();
+}
+
+/* === Controls wiring === */
+mineRange.addEventListener('input', () => {
+  mineNumber.value = mineRange.value;
+});
+mineNumber.addEventListener('input', () => {
+  let v = mineNumber.value;
+  if (v === '') return; // allow typing
+  if (+v > MAX_MINES) v = MAX_MINES;
+  if (+v < 1) v = 1;
+  mineNumber.value = v;
+  mineRange.value = v;
+});
+
+startBtn.addEventListener('click', startGame);
+resetBtn.addEventListener('click', resetGame);
+
+/* Initial UI (no game running yet) */
+setStatus('Not started');
+updateCounters();
 </script>
 </body>
 </html>
