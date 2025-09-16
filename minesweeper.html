@@ -55,8 +55,8 @@
 <!-- NEW: tiny control panel -->
 <div id="controls">
   <label for="mineRange">Bombs:</label>
-  <input id="mineRange" type="range" min="1" value="10">
-  <input id="mineNumber" type="number" min="1" value="10">
+  <input id="mineRange" type="range" min="10" max="20" value="10">
+  <input id="mineNumber" type="number" min="10" max="20" value="10">
   <button id="startBtn">Start Game</button>
   <button id="resetBtn" disabled>Reset</button>
 </div>
@@ -85,8 +85,8 @@ const mineRange  = document.getElementById('mineRange');
 const mineNumber = document.getElementById('mineNumber');
 
 /* Range/number bounds */
-mineRange.max = MAX_MINES;
-mineNumber.max = MAX_MINES;
+mineRange.max = 20;
+mineNumber.max = 20;
 
 /* === Game state === */
 let minesTotal = 10;
@@ -254,8 +254,8 @@ function buildBoard() {
 function startGame() {
   // sanitize mine count
   let m = parseInt(mineNumber.value, 10);
-  if (isNaN(m) || m < 1) m = 1;
-  if (m > MAX_MINES) m = MAX_MINES;
+  if (isNaN(m) || m < 10) m = 10;
+  if (m > 20) m = 20;
   mineRange.value = mineNumber.value = m;
 
   minesTotal   = m;
@@ -285,8 +285,8 @@ mineRange.addEventListener('input', () => {
 mineNumber.addEventListener('input', () => {
   let v = mineNumber.value;
   if (v === '') return; // allow typing
-  if (+v > MAX_MINES) v = MAX_MINES;
-  if (+v < 1) v = 1;
+  if (+v > 20) v = 20;
+  if (+v < 10) v = 10;
   mineNumber.value = v;
   mineRange.value = v;
 });
