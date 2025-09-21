@@ -27,13 +27,53 @@
   #state.lost { color: #b00000; font-weight: 700; }
   #state.won { color: #005fb0; font-weight: 700; }
 
-  /* Board */
+  /* Board container with labels */
+  #board-container {
+    display: inline-block;
+    margin-top: 6px;
+  }
+
+  /* Column labels */
+  #column-labels {
+    display: grid;
+    grid-template-columns: var(--cell) repeat(10, var(--cell));
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+  .column-label {
+    width: var(--cell);
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+  }
+  .column-label:first-child {
+    /* Empty corner cell */
+  }
+
+  /* Game board with row labels */
   #game-board {
     display: grid;
-    grid-template-columns: repeat(10, var(--cell));
+    grid-template-columns: var(--cell) repeat(10, var(--cell));
     grid-template-rows: repeat(10, var(--cell));
-    gap: 2px; margin-top: 6px; width: max-content;
+    gap: 2px;
+    width: max-content;
   }
+
+  /* Row labels */
+  .row-label {
+    width: var(--cell);
+    height: var(--cell);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  /* Game cells */
   .cell {
     width: var(--cell); height: var(--cell);
     background: #ccc; border: 1px solid #999; cursor: pointer;
@@ -67,7 +107,10 @@
   | Flags left: <span id="flags">0</span>
 </div>
 
-<div id="game-board"></div>
+<div id="board-container">
+  <div id="column-labels"></div>
+  <div id="game-board"></div>
+</div>
 
 <script>
 /* === Config === */
@@ -76,6 +119,7 @@ const MAX_MINES = BOARD_SIZE * BOARD_SIZE - 1;  // keep at least 1 safe cell
 
 /* === DOM === */
 const board    = document.getElementById('game-board');
+const columnLabels = document.getElementById('column-labels');
 const minesEl  = document.getElementById('mines');
 const flagsEl  = document.getElementById('flags');
 const stateEl  = document.getElementById('state');
@@ -192,10 +236,33 @@ function checkWin() {
   }
 }
 
+/* === Build Labels === */
+function buildColumnLabels() {
+  columnLabels.innerHTML = '';
+  
+  const corner = document.createElement('div');
+  corner.classList.add('column-label');
+  columnLabels.appendChild(corner);
+  
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    const label = document.createElement('div');
+    label.classList.add('column-label');
+    label.textContent = String.fromCharCode(65 + i); // A, B, C, etc.
+    columnLabels.appendChild(label);
+  }
+}
+
 /* === Build / Reset === */
 function buildBoard() {
   board.innerHTML = '';
+  buildColumnLabels();
+  
   for (let row = 0; row < BOARD_SIZE; row++) {
+    const rowLabel = document.createElement('div');
+    rowLabel.classList.add('row-label');
+    rowLabel.textContent = (row + 1).toString();
+    board.appendChild(rowLabel);
+    
     for (let col = 0; col < BOARD_SIZE; col++) {
       const cell = document.createElement('div');
       cell.classList.add('cell','covered');
