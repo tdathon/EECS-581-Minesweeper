@@ -60,3 +60,30 @@ A single-player puzzle game implementation of Minesweeper featuring a 10x10 grid
 - **Mine Counter:** Shows total mines on board
 - **Flag Counter:** Shows remaining flags available
 - **Reset Button:** Start new game with same settings
+
+# Documentation
+
+## Mine Placement Algorithm - Author: Nick Reinig
+
+Mines are not placed on the board until the first click occurs.
+This guarantees that the first cell revealed will always be safe.
+When the first click is made, the function `placeMines(excludeRow, excludeCol)` executes:
+
+### Steps
+
+1. **Random coordinates**
+   The algorithm repeatedly generates random row and column indices within the grid
+   (`0 ≤ r, c < BOARD_SIZE`).
+
+2. **Safe first click**
+   If the randomly chosen cell matches the first-clicked coordinates
+   `(excludeRow, excludeCol)`, it is skipped to ensure that position does not contain a mine.
+
+3. **Unique placement**
+   Each cell is represented as a string key `"row,col"`.
+   The positions are stored in a `Set` (`minePositions`) to prevent duplicates.
+   The loop continues until the total number of unique mines equals the requested `minesTotal`.
+
+4. **Completion**
+   Once enough mines are placed, the `minesPlaced` flag is set to `true`.
+   From that point onward, mine lookups (`isMine(r,c)`) reference the `minePositions` set.
