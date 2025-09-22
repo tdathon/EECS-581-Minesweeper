@@ -1,4 +1,14 @@
 <!DOCTYPE html>
+<!--
+Description: Single-file implementation of Mineseweeper with 10x10 gri, user-configurable mine count, and complete gameplay including mine flagging, recursive reveal, and win/loss detection.
+Authors: Ted Athon, Alec Slavik, Dylan O’Brien, Divit Kannan, Nick Reinig, Amrit Sian
+Creation Date: 9/2/2025
+Course: EECS 581 Software Engineering II, Fall 2025
+
+Inputs: User mouse clicks (left reveal, right flag), mine count selection via slider/number input
+Outputs: Interactive game grid, status updates, win/loss detection notification
+Source: Original
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -92,7 +102,7 @@
 
 <h1>Minesweeper 10x10 Grid</h1>
 
-<!-- NEW: tiny control panel -->
+<!-- Control panel -->
 <div id="controls">
   <label for="mineRange">Bombs:</label>
   <input id="mineRange" type="range" min="10" max="20" value="10">
@@ -113,6 +123,9 @@
 </div>
 
 <script>
+/*
+Description: Core game logic for Minesweeper with board management, mine placement, cell revealing, win/loss detection.
+Source: Original
 /* === Config === */
 const BOARD_SIZE = 10;                          // 10x10 fixed grid for now
 const MAX_MINES = BOARD_SIZE * BOARD_SIZE - 1;  // keep at least 1 safe cell
@@ -129,66 +142,77 @@ const mineRange  = document.getElementById('mineRange');
 const mineNumber = document.getElementById('mineNumber');
 
 /* Range/number bounds */
-mineRange.max = 20;
-mineNumber.max = 20;
+mineRange.max = 20; // max mines allowed
+mineNumber.max = 20; // synchronizes slider and number input
 
 /* === Game state === */
-let minesTotal = 10;
-let flagsPlaced = 0;
-let firstClick = true;
-let minesPlaced = false;
-let gameOver = true;
-let revealedCount = 0;
-let minePositions = new Set();
+let minesTotal = 10; // total mines on board
+let flagsPlaced = 0; // count of flags placed by user
+let firstClick = true; // first click is safe
+let minesPlaced = false; // track if mines are randomly placed
+let gameOver = true; // game completion status
+let revealedCount = 0; // number of safe cells revealed
+let minePositions = new Set(); // storage for mine coordinates as strings
 
 /* === Helpers === */
+// update game status display
 function setStatus(text, cls='') {
   stateEl.textContent = text;
   stateEl.className = cls;
 }
+// update mine and flag counters in UI
 function updateCounters() {
   minesEl.textContent = minesTotal;
-  flagsEl.textContent = minesTotal - flagsPlaced;
+  flagsEl.textContent = minesTotal - flagsPlaced; // remaining flags available
 }
 
+// checks if coordinates are within board boundaries
 function isInBounds(r, c) {
   return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
 }
+// generate string key for coordinate storage in set
 function getKey(r, c){ return `${r},${c}`; }
+// check if cell contains a mine
 function isMine(r, c) { return minePositions.has(getKey(r,c)); }
+// get DOM element for specific call
 function getCell(r, c) {
   return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
 }
+// count adjacent mines for number display
 function countAdjacentMines(r, c) {
   let count = 0;
+  // check all surrounding cells
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      const nr = r + dr, nc = c + dc;
+      if (dr === 0 && dc === 0) continue; // skip center cell
+      const nr = r + dr, nc = c + dc; // neighbor coordinates calculation
       if (isInBounds(nr, nc) && isMine(nr, nc)) count++;
     }
   }
   return count;
 }
 
+// randomly place mines on board avoiding first click location
 function placeMines(excludeRow, excludeCol) {
   while (minePositions.size < minesTotal) {
+    // generate random coordinate
     const r = Math.floor(Math.random() * BOARD_SIZE);
     const c = Math.floor(Math.random() * BOARD_SIZE);
     if (r === excludeRow && c === excludeCol) continue; // first click is safe
-    minePositions.add(getKey(r, c));
+    minePositions.add(getKey(r, c)); // set handles duplicates automatically
   }
   minesPlaced = true;
 }
 
+// reveal all mine locations when game is over
 function revealMines() {
   minePositions.forEach(key => {
-    const [r,c] = key.split(',').map(Number);
+    const [r,c] = key.split(',').map(Number); // parse coordinates from string
     const cell = getCell(r,c);
     if (!cell.classList.contains('revealed')) {
       cell.classList.remove('covered');
       cell.classList.add('revealed','mine');
-      cell.textContent = '💣';
+      cell.textContent = '💣'; // visual indication of mine
     }
   });
 }
@@ -240,10 +264,12 @@ function checkWin() {
 function buildColumnLabels() {
   columnLabels.innerHTML = '';
   
+  // empty corner cell
   const corner = document.createElement('div');
   corner.classList.add('column-label');
   columnLabels.appendChild(corner);
   
+  // column labels A-J
   for (let i = 0; i < BOARD_SIZE; i++) {
     const label = document.createElement('div');
     label.classList.add('column-label');
@@ -258,11 +284,13 @@ function buildBoard() {
   buildColumnLabels();
   
   for (let row = 0; row < BOARD_SIZE; row++) {
+    // add row label
     const rowLabel = document.createElement('div');
     rowLabel.classList.add('row-label');
-    rowLabel.textContent = (row + 1).toString();
+    rowLabel.textContent = (row + 1).toString(); // 1, 2, 3 , etc
     board.appendChild(rowLabel);
     
+    // add cells for this row
     for (let col = 0; col < BOARD_SIZE; col++) {
       const cell = document.createElement('div');
       cell.classList.add('cell','covered');
