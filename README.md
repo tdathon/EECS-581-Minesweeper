@@ -89,16 +89,17 @@ The application runs fully in the browser, no backend required. The HTML defines
    - Win occurs when the count of revealed safe cells equals total safe cells, shows You won, and reveals mines for confirmation.
 
 ## Key Data Structures
-Key Data Structures
 
 Constants
 - BOARD_SIZE: number
   Fixed size of the grid, 10 in this implementation.
 - MAX_MINES: number
   Safety cap that ensures at least one safe cell exists.
+
 DOM Handles
 - board, columnLabels, minesEl, flagsEl, stateEl, startBtn, resetBtn, mineRange, mineNumber
 - Cached references to avoid repeated lookups and to centralize updates.
+
 Game State
 - minesTotal: number
   Total number of mines selected by the user.
@@ -114,6 +115,7 @@ Game State
   Number of safe cells revealed, used for win detection.
 - minePositions: Set<string>
   Stores coordinates as "r,c" strings for O(1) membership checks.
+
 Helpers and Algorithms
 - isInBounds(r, c): boolean
   Validates coordinates before reads or writes.
