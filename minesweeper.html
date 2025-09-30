@@ -393,6 +393,91 @@ function resetGame() {
 
 function startBotGame() {
   startGame();
+  const botDifficulty = document.getElementById("botSelect").value;
+  if (botDifficulty == "easy") {
+    botClicking = setInterval(easyBotClick, 500);
+  }
+  else if (botDifficulty == "medium") {
+    botClicking = setInterval(mediumBotClick, 1000);
+  }
+}
+
+function easyBotClick() {
+    let randomRow = Math.floor(Math.random() * 10);
+    let randomCol = Math.floor(Math.random() * 10);
+    let cell = document.querySelector(`.cell.covered[data-row="${randomRow}"][data-col="${randomCol}"]`);
+    if (cell) {
+      console.log(`Bot clicks cell in row ${cell.dataset.row}, column ${cell.dataset.col}`);
+      cell.click();
+    }
+    else {
+      easyBotClick();
+    }
+}
+
+function mediumBotClick() { 
+  let revealed_cells = document.querySelectorAll('.cell.revealed');
+
+  revealed_cells.forEach(cell => {
+    if(cell.textContent != '') {
+      console.log(`Bot CHECKS cell in row ${cell.dataset.row}, column ${cell.dataset.col}`);
+      const row = parseInt(cell.dataset.row);
+      const col = parseInt(cell.dataset.col);
+
+      // Gets all neighbors
+      let topLeft = document.querySelector(`.cell.covered[data-row="${row-1}"][data-col="${col-1}"]`);
+      let topMid = document.querySelector(`.cell.covered[data-row="${row-1}"][data-col="${col}"]`);
+      let topRight = document.querySelector(`.cell.covered[data-row="${row-1}"][data-col="${col+1}"]`);
+      let midLeft = document.querySelector(`.cell.covered[data-row="${row}"][data-col="${col-1}"]`);
+      let midRight = document.querySelector(`.cell.covered[data-row="${row}"][data-col="${col+1}"]`);
+      let bottomLeft = document.querySelector(`.cell.covered[data-row="${row+1}"][data-col="${col-1}"]`);
+      let bottomMid = document.querySelector(`.cell.covered[data-row="${row+1}"][data-col="${col}"]`);
+      let bottomRight = document.querySelector(`.cell.covered[data-row="${row+1}"][data-col="${col+1}"]`);
+      let neighbors = [topLeft, topMid, topRight, midLeft, midRight, bottomLeft, bottomMid, bottomRight];
+      neighbors = neighbors.filter(neighbor => neighbor !== null);  // Filter out neighbors that aren't there
+
+      // Rule 1: If the number of hidden neighbors of a revealed cell equals that cell’s number
+      if (neighbors.length == countAdjacentMines(row, col)) {
+          neighbors.forEach((neighbor) => {
+            console.log(`Bot FLAGS cell in row ${neighbor.dataset.row}, column ${neighbor.dataset.col} `)
+            neighbor.classList.add('flagged','flag-icon');
+            neighbor.textContent = '⚑'; // the AI should flag all hidden neighbors
+        });
+      }
+
+      // Get flagged neighbors
+      topLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row-1}"][data-col="${col-1}"]`);
+      topMid = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row-1}"][data-col="${col}"]`);
+      topRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row-1}"][data-col="${col+1}"]`);
+      midLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row}"][data-col="${col-1}"]`);
+      midRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row}"][data-col="${col+1}"]`);
+      bottomLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row+1}"][data-col="${col-1}"]`);
+      bottomMid = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row+1}"][data-col="${col}"]`);
+      bottomRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row+1}"][data-col="${col+1}"]`);
+      neighbors = [topLeft, topMid, topRight, midLeft, midRight, bottomLeft, bottomMid, bottomRight];
+      neighbors = neighbors.filter(neighbor => neighbor !== null);  // Filter out neighbors that aren't there
+
+      // Rule 2: If the number of flagged neighbors of a revealed cell equals that cell’s number
+      if (neighbors.length == countAdjacentMines(row, col)) {
+          neighbors.forEach((neighbor) => {
+            console.log(`Bot CLICKS NEIGHBOR cell in row ${neighbor.dataset.row}, column ${neighbor.dataset.col}`);
+            neighbor.click(); // the AI should open all other hidden neighbors
+        });
+      }
+    }
+  });
+
+  //If no rule applies, the AI should pick a random hidden cell.
+  easyBotClick();
+}
+
+// Disable clicking on board @TODO IMPLEMENT LATER WITH BOT PLAY MODE
+function clickBoard(setting) {
+  if (setting == "enable") {
+    board.style = "";
+  }
+  else if (setting == "disable") {
+    board.style = "pointer-events: none;"
   botClicking = setInterval(botClick, 500);
   //botClick();
 }
