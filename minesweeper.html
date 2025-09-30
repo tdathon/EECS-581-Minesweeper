@@ -108,10 +108,10 @@ Source: Original, ChatGPT
   <input id="mineRange" type="range" min="10" max="20" value="10">
   <input id="mineNumber" type="number" min="10" max="20" value="10">
   <button id="startBtn">Start Game</button>
-  <button id=""flagged"resetBtn" disabled>Reset</button>
+  <button id="resetBtn" disabled>Reset</button>
+  <button id="startBotBtn">Start Bot Game</button>
   <label for="botSelect">Select Bot Difficulty</label>
   <select id="botSelect">
-    <option value="singleplayer">N/A</option>
     <option value="easy">Easy</option>
     <option value="medium">Medium</option>
     <option value="hard">Hard</option>
@@ -161,6 +161,7 @@ let gameOver = true; // game completion status
 let revealedCount = 0; // number of safe cells revealed
 let minePositions = new Set(); // storage for mine coordinates as strings
 let botClicking;
+
 let player_turn = 0;
 
 /* === Helpers === */
@@ -352,6 +353,9 @@ function buildBoard() {
           cell.textContent = '⚑';
           flagsPlaced++;
         } else {
+          // basic sound effects template
+          const unflag_sound = new Audio("sound-effects/unflag.mp3");
+          unflag_sound.play();
           cell.classList.remove('flagged','flag-icon');
           cell.textContent = '';
           flagsPlaced--;
@@ -531,6 +535,31 @@ function botClick() {
         //CONCEPT: only check the 121 rule a 2 tile
         //3.a: check for a 2 tile
         if (current_cell.textContent == '2') {
+          
+          //3.a.0 hopefully a bugfix for the case where there are more than 2 unrevealed corner squares around the 2
+          // get all corner cells
+          let up_left = getCell(row_index - 1, column_index - 1);
+          let up_right = getCell(row_index - 1, column_index + 1);
+          let down_left = getCell(row_index + 1, column_index - 1);
+          let down_right = getCell(row_index + 1, column_index + 1);
+
+          // count the number of unrevealed corners
+          let unrevealed_corners = 0;
+          if (up_left != null && !up_left.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (up_right != null && !up_right.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (down_left != null && !down_left.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (down_right != null && !down_right.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (unrevealed_corners > 2) {
+            continue;
+          }
           //3.b: get a + shape with the current_cell as the center, set 121 statuses to false
           let current_up_one = getCell(row_index - 1, column_index);
           let current_left_one = getCell(row_index, column_index - 1);
