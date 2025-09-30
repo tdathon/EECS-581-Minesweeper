@@ -108,7 +108,14 @@ Source: Original, ChatGPT
   <input id="mineRange" type="range" min="10" max="20" value="10">
   <input id="mineNumber" type="number" min="10" max="20" value="10">
   <button id="startBtn">Start Game</button>
-  <button id="resetBtn" disabled>Reset</button>
+  <button id=""flagged"resetBtn" disabled>Reset</button>
+  <label for="botSelect">Select Bot Difficulty</label>
+  <select id="botSelect">
+    <option value="singleplayer">N/A</option>
+    <option value="easy">Easy</option>
+    <option value="medium">Medium</option>
+    <option value="hard">Hard</option>
+  </select>
 </div>
 
 <div id="status">
@@ -153,6 +160,8 @@ let minesPlaced = false; // track if mines are randomly placed
 let gameOver = true; // game completion status
 let revealedCount = 0; // number of safe cells revealed
 let minePositions = new Set(); // storage for mine coordinates as strings
+let botClicking;
+let player_turn = 0;
 
 /* === Helpers === */
 // update game status display
@@ -280,6 +289,7 @@ function buildColumnLabels() {
 
 /* === Build / Reset === */
 function buildBoard() {
+  player_turn = 0;
   board.innerHTML = '';
   buildColumnLabels();
   
@@ -312,12 +322,20 @@ function buildBoard() {
           cell.classList.remove('covered');
           cell.classList.add('revealed','mine');
           cell.textContent = '💣';
+          clearInterval(botClicking);
           gameOver = true;
           setStatus('Game over', 'lost');
           revealMines();
         } else {
           revealedCount += floodReveal(row, col);
           checkWin();
+          cell.classList.remove('covered');
+          cell.classList.add('revealed');
+          player_turn++; // if all is working properly this should equal 1,3,5,7,9,... on users' clicks and vice versa for bots
+
+          if (player_turn % 2 === 1) {
+            setTimeout(botClick, 1000); // waits 1000ms, then bot takes turn
+          }
         }
       });
 
@@ -373,6 +391,159 @@ function resetGame() {
   startGame();
 }
 
+function startBotGame() {
+  startGame();
+  botClicking = setInterval(botClick, 500);
+  //botClick();
+}
+
+function botClick() {
+  const botDifficulty = document.getElementById("botSelect").value;
+  console.log(botDifficulty);
+
+  if (botDifficulty == "N/A") { return }
+
+  if (botDifficulty == "easy") {
+    let randomRow = Math.floor(Math.random() * 10);
+    let randomCol = Math.floor(Math.random() * 10);
+    let cell = document.querySelector(`.cell.covered[data-row="${randomRow}"][data-col="${randomCol}"]`);
+    if (cell && !cell.classList.contains("flagged")) {
+        console.log(`Bot clicks cell in row ${cell.dataset.row}, column ${cell.dataset.col}`);
+        cell.click();
+    }
+    else {
+      botClick();
+    }
+
+  } else if (botDifficulty == "medium") {
+
+  } else { // hard difficulty
+    //1st run flags, 2nd run checks for rule 2, random pick otherwise
+    for (let row_index = 0; row_index < BOARD_SIZE; row_index++) {
+      //if we cannot place anymore flags down, flagging run is pointless
+      if (flagsPlaced >= minesTotal) break; // no more flags
+
+      for (let column_index = 0; column_index < BOARD_SIZE; column_index++) {
+
+        
+
+        //Get tile with these coordinates
+        let current_cell = getCell(row_index, column_index);
+
+        //DEBUGGING, PLS REMOVE IF YOU DON'T NEED THE INFO
+        //console.log(`current cell is row ${current_cell.dataset.row} column ${current_cell.dataset.col}`);
+
+        //If this tile is not revealed yet, we can't check it -> skip
+        if (!current_cell.classList.contains("revealed")) {
+          continue;
+        }
+
+        //This section reachable iff tile is revealed
+
+        //Check rule 1: if number of adjacent hidden tiles = revealed number, flag them all
+        //Don't break from loop
+
+        //Check rule 3: 121 rule
+        //Don't break from loop
+        //CONCEPT: only check the 121 rule a 2 tile
+        //3.a: check for a 2 tile
+        if (current_cell.textContent == '2') {
+          //3.b: get a + shape with the current_cell as the center, set 121 statuses to false
+          let current_up_one = getCell(row_index - 1, column_index);
+          let current_left_one = getCell(row_index, column_index - 1);
+          let current_down_one = getCell(row_index + 1, column_index);
+          let current_right_one = getCell(row_index, column_index + 1);
+          let vertical_121 = false;
+          let horizontal_121 = false;
+
+          //3.c: check left and right exist and are revealed (check we aren't on the left or right bound of the grid)
+          if ((current_left_one != null && current_right_one != null) && (current_left_one.classList.contains("revealed") && current_right_one.classList.contains("revealed"))) {
+
+            //3.d check left and right tiles are 1s
+            if (current_right_one.textContent == '1' && current_left_one.textContent == '1') {
+              //DEBUGGING
+              console.log(`horizontal 121 @ row ${current_cell.dataset.row} column ${current_cell.dataset.col}`);
+
+              //indicate a 121 has been found
+              horizontal_121 = true;
+            }
+          }
+
+          //3.c: check up and down exist and are revealed (check we aren't on the top or bottom bound of the grid)
+          if ((current_up_one != null && current_down_one != null) && (current_up_one.classList.contains("revealed") && current_down_one.classList.contains("revealed"))) {
+
+            //3.d check left and right tiles are 1s
+            if (current_up_one.textContent == '1' && current_down_one.textContent == '1') {
+              //DEBUGGING
+              console.log(`vertical 121 @ row ${current_cell.dataset.row} column ${current_cell.dataset.col}`);
+
+              //indicate a 121 has been found
+              vertical_121 = true;
+            }
+          }
+
+          //3.e: if a 121 pattern has been detected flag the 4 corners of the 2
+          if (vertical_121 || horizontal_121) {
+
+            //get the 4 corners
+            let current_tl = getCell(row_index - 1, column_index - 1);
+            let current_tr = getCell(row_index - 1, column_index + 1);
+            let current_bl = getCell(row_index + 1, column_index - 1);
+            let current_br = getCell(row_index + 1, column_index + 1);
+
+            //flag each corner if it exists, isn't revealed, and doesn't already contain a flag
+            if (current_tl != null && !current_tl.classList.contains("revealed") && !current_tl.classList.contains('flagged')) {
+              current_tl.classList.add('flagged','flag-icon');
+              current_tl.textContent = '⚑';
+              flagsPlaced++;
+            }
+            if (current_tr != null && !current_tr.classList.contains("revealed") && !current_tr.classList.contains('flagged')) {
+              current_tr.classList.add('flagged','flag-icon');
+              current_tr.textContent = '⚑';
+              flagsPlaced++;
+            }
+            if (current_bl != null && !current_bl.classList.contains("revealed") && !current_bl.classList.contains('flagged')) {
+              current_bl.classList.add('flagged','flag-icon');
+              current_bl.textContent = '⚑';
+              flagsPlaced++;
+            }
+            if (current_br != null && !current_br.classList.contains("revealed") && !current_br.classList.contains('flagged')) {
+              current_br.classList.add('flagged','flag-icon');
+              current_br.textContent = '⚑';
+              flagsPlaced++;
+            }
+
+            //update flag counter
+            updateCounters();
+
+
+          }
+        }
+      }
+    }
+
+    //rule 2 run
+    for (let row_index = 0; row_index < BOARD_SIZE; row_index++) {
+      for (let column_index = 0; column_index < BOARD_SIZE; column_index++) {
+
+        //Get tile with these coordinates
+        let current_cell = getCell(row_index, column_index);
+
+        //If this tile is not revealed yet, we can't check it -> skip
+        if (!current_cell.classList.contains("revealed")) {
+          continue;
+        }
+
+        //Check rule 2: if revealed number = number of adjacent flags, reveal unflagged hidden neighbors (if there are any)
+          //return if done
+      }
+    }
+
+    //random pick
+
+  }
+}
+
 /* === Controls wiring === */
 mineRange.addEventListener('input', () => {
   mineNumber.value = mineRange.value;
@@ -388,6 +559,7 @@ mineNumber.addEventListener('input', () => {
 
 startBtn.addEventListener('click', startGame);
 resetBtn.addEventListener('click', resetGame);
+startBotBtn.addEventListener('click', startBotGame);
 
 /* Initial UI (no game running yet) */
 setStatus('Not started');
