@@ -401,9 +401,7 @@ function botClick() {
   const botDifficulty = document.getElementById("botSelect").value;
   console.log(botDifficulty);
 
-  if (botDifficulty == "N/A") { return }
-
-  if (botDifficulty == "easy") {
+  if (botDifficulty === "easy") {
     let randomRow = Math.floor(Math.random() * 10);
     let randomCol = Math.floor(Math.random() * 10);
     let cell = document.querySelector(`.cell.covered[data-row="${randomRow}"][data-col="${randomCol}"]`);
@@ -415,9 +413,9 @@ function botClick() {
       botClick();
     }
 
-  } else if (botDifficulty == "medium") {
+  } else if (botDifficulty === "medium") {
 
-  } else { // hard difficulty
+  } else if (botDifficulty === "hard") { // hard difficulty
     //1st run flags, 2nd run checks for rule 2, random pick otherwise
     for (let row_index = 0; row_index < BOARD_SIZE; row_index++) {
       //if we cannot place anymore flags down, flagging run is pointless
