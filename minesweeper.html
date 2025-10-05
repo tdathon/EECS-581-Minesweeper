@@ -352,6 +352,9 @@ function buildBoard() {
           cell.textContent = '⚑';
           flagsPlaced++;
         } else {
+          // basic sound effects template
+          const unflag_sound = new Audio("sound-effects/unflag.mp3");
+          unflag_sound.play();
           cell.classList.remove('flagged','flag-icon');
           cell.textContent = '';
           flagsPlaced--;
@@ -556,6 +559,7 @@ function botClick() {
           if (unrevealed_corners > 2) {
             continue;
           }
+
           //3.b: get a + shape with the current_cell as the center, set 121 statuses to false
           let current_up_one = getCell(row_index - 1, column_index);
           let current_left_one = getCell(row_index, column_index - 1);
