@@ -403,10 +403,10 @@ function startBotGame() {
     botClicking = setInterval(easyBotClick, 500);
   }
   else if (botDifficulty == "medium") {
-    botClicking = setInterval(mediumBotClick, 5000);
+    botClicking = setInterval(mediumBotClick, 1000);
   }
   else if (botDifficulty == "hard") {
-    botClicking = setInterval(hardBotClick, 5000);
+    botClicking = setInterval(hardBotClick, 1000);
   }
 }
 
@@ -425,6 +425,7 @@ function easyBotClick() {
 
 function mediumBotClick() { 
   let revealed_cells = document.querySelectorAll('.cell.revealed');
+  let rule1_activation = false;
   let rule2_activation = false;
   revealed_cells.forEach(cell => {
     if(cell.textContent != '') {
@@ -454,6 +455,7 @@ function mediumBotClick() {
               flagsPlaced++;
             }
         });
+        rule1_activation = true;
         //update flag counter
         updateCounters();
       }
@@ -484,13 +486,15 @@ function mediumBotClick() {
   });
 
   //If no rule applies, the AI should pick a random hidden cell.
-  if (!rule2_activation) {
+  if (!rule1_activation && !rule2_activation) {
     easyBotClick();
   }
 }
 
 function hardBotClick() {
   //1st run flags, 2nd run checks for rule 2, random pick otherwise
+    let rule1_activation = false;
+    let rule3_activation = false;
     for (let row_index = 0; row_index < BOARD_SIZE; row_index++) {
       //if we cannot place anymore flags down, flagging run is pointless
       if (flagsPlaced >= minesTotal) break; // no more flags
@@ -531,6 +535,7 @@ function hardBotClick() {
               flagsPlaced++;
             }
           });
+          rule1_activation = true;
           //update flag counter
           updateCounters();
         }
@@ -611,6 +616,8 @@ function hardBotClick() {
               flagsPlaced++;
             }
 
+            rule3_activation = true;
+
             //update flag counter
             updateCounters();
 
@@ -676,7 +683,7 @@ function hardBotClick() {
     }
 
     //random pick if rule 2 did not trigger
-    if (!rule2_activation) {
+    if (!rule1_activation && !rule2_activation && !rule3_activation) {
       easyBotClick();
     }
   }
@@ -716,4 +723,5 @@ updateCounters();
 </script>
 </body>
 </html>
+
 
