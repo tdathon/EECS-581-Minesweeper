@@ -329,6 +329,8 @@ function buildBoard() {
           cell.classList.add('revealed','mine');
           cell.textContent = '💣';
           clearInterval(botClicking);
+          const mine_sound = new Audio("sound-effects/kaboom.mp3");
+          mine_sound.play();
           gameOver = true;
           setStatus('Game over', 'lost');
           revealMines();
