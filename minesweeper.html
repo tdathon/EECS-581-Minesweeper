@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <!--
-Description: Single-file implementation of Mineseweeper with 10x10 gri, user-configurable mine count, and complete gameplay including mine flagging, recursive reveal, and win/loss detection.
-Authors: Ted Athon, Alec Slavik, Dylan O’Brien, Divit Kannan, Nick Reinig, Amrit Sian
+Description: Single-file implementation of Mineseweeper with 10x10 gri, user-configurable mine count, and complete gameplay including mine flagging, recursive reveal, and win/loss detection. Extensions include AI helpers and sound effects.
+Original Authors: Ted Athon, Alec Slavik, Dylan O’Brien, Divit Kannan, Nick Reinig, Amrit Sian
+Extension Authors: Daniel Butler, Charley Findling, Skylar Franz, Jack Gerety, Beckett Malinowski  
 Creation Date: 9/2/2025
 Course: EECS 581 Software Engineering II, Fall 2025
 
-Inputs: User mouse clicks (left reveal, right flag), mine count selection via slider/number input
+Inputs: User mouse clicks (left reveal, right flag), mine count selection via slider/number input, bot difficulty selector, reset button
 Outputs: Interactive game grid, status updates, win/loss detection notification
 Source: Original, ChatGPT
 -->
@@ -353,6 +354,9 @@ function buildBoard() {
           cell.textContent = '⚑';
           flagsPlaced++;
         } else {
+          // basic sound effects template
+          const unflag_sound = new Audio("sound-effects/unflag.mp3");
+          unflag_sound.play();
           cell.classList.remove('flagged','flag-icon');
           cell.textContent = '';
           flagsPlaced--;
@@ -555,6 +559,7 @@ function hardBotClick() {
           if (unrevealed_corners > 2) {
             continue;
           }
+
           //3.b: get a + shape with the current_cell as the center, set 121 statuses to false
           let vertical_121 = false;
           let horizontal_121 = false;
