@@ -494,15 +494,13 @@ function mediumBotClick() {
       if (flagged_neighbors.length == countAdjacentMines(row, col) && neighbors.length != flagged_neighbors.length) {
           neighbors.forEach((neighbor) => {
             if (!neighbor.classList.contains('flagged')) {
-              if (!is_auto_game) {
+              if (!is_auto_game) { // interactive
                 if (!did_bot_click_already) { // interactive game
-                  console.log("bot did not click yet");
                   neighbor.click(); // the AI should open all other hidden neighbors
                   console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
                   did_bot_click_already = true;
                 }
-              } else {
-                console.log("erm..");
+              } else { // auto game
                 neighbor.click(); // the AI should open all other hidden neighbors
               }
             }
@@ -519,6 +517,8 @@ function mediumBotClick() {
 }
 
 function hardBotClick() {
+  let did_bot_click_already = false;
+
   //1st run flags, 2nd run checks for rule 2, random pick otherwise
     let rule1_activation = false;
     let rule3_activation = false;
@@ -698,11 +698,17 @@ function hardBotClick() {
         //return if done
         if (flagged_neighbors.length == countAdjacentMines(row_index, column_index) && flagged_neighbors.length != neighbors.length) {
           neighbors.forEach((neighbor) => {
-            console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
             //only click unflagged tiles
             if (!neighbor.classList.contains('flagged')) {
-              neighbor.click(); // the AI should open all other hidden neighbors
-              return;
+              if (!is_auto_game) { // interactive
+                if (!did_bot_click_already) { // interactive game
+                  neighbor.click(); // the AI should open all other hidden neighbors
+                  console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
+                  did_bot_click_already = true;
+                }
+              } else { // auto game
+                neighbor.click(); // the AI should open all other hidden neighbors
+              }
             }
           });
           rule2_activation = true;
@@ -713,7 +719,6 @@ function hardBotClick() {
     //random pick if rule 2 did not trigger
     if (!rule1_activation && !rule2_activation && !rule3_activation) {
       easyBotClick();
-      return;
     }
   }
 
