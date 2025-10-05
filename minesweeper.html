@@ -450,8 +450,8 @@ function mediumBotClick() {
               neighbor.textContent = '⚑'; // the AI should flag all hidden neighbors
               flagsPlaced++;
             }
-            rule1_activation = true;
         });
+        rule1_activation = true;
         //update flag counter
         updateCounters();
       }
@@ -489,6 +489,8 @@ function mediumBotClick() {
 
 function hardBotClick() {
   //1st run flags, 2nd run checks for rule 2, random pick otherwise
+    let rule1_activation = false;
+    let rule3_activation = false;
     for (let row_index = 0; row_index < BOARD_SIZE; row_index++) {
       //if we cannot place anymore flags down, flagging run is pointless
       if (flagsPlaced >= minesTotal) break; // no more flags
@@ -529,6 +531,7 @@ function hardBotClick() {
               flagsPlaced++;
             }
           });
+          rule1_activation = true;
           //update flag counter
           updateCounters();
         }
@@ -608,6 +611,8 @@ function hardBotClick() {
               flagsPlaced++;
             }
 
+            rule3_activation = true;
+
             //update flag counter
             updateCounters();
 
@@ -673,7 +678,7 @@ function hardBotClick() {
     }
 
     //random pick if rule 2 did not trigger
-    if (!rule2_activation) {
+    if (!rule1_activation && !rule2_activation && !rule3_activation) {
       easyBotClick();
     }
   }
@@ -713,4 +718,5 @@ updateCounters();
 </script>
 </body>
 </html>
+
 
