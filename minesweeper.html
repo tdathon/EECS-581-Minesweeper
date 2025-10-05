@@ -166,6 +166,7 @@ let minePositions = new Set(); // storage for mine coordinates as strings
 let botClicking;
 let player_turn = 0;
 let is_auto_game = false;
+let did_bot_click_already = false;
 
 /* === Helpers === */
 // update game status display
@@ -439,13 +440,14 @@ function easyBotClick() {
 }
 
 function mediumBotClick() { 
-  console.log("mediumBotClick");
+  let did_bot_click_already = false;
+
   let revealed_cells = document.querySelectorAll('.cell.revealed');
   let rule1_activation = false;
   let rule2_activation = false;
   revealed_cells.forEach(cell => {
     if(cell.textContent != '') {
-      console.log(`Bot CHECKS cell in row ${parseInt(cell.dataset.row) + 1}, column ${parseInt(cell.dataset.col) + 1}`);
+      // console.log(`Bot CHECKS cell in row ${parseInt(cell.dataset.row) + 1}, column ${parseInt(cell.dataset.col) + 1}`);
       const row = parseInt(cell.dataset.row);
       const col = parseInt(cell.dataset.col);
 
@@ -490,41 +492,21 @@ function mediumBotClick() {
 
       // Rule 2: If the number of flagged neighbors of a revealed cell equals that cell’s number
       if (flagged_neighbors.length == countAdjacentMines(row, col) && neighbors.length != flagged_neighbors.length) {
-          let already_clicked = false; // used exclusively for interactive games
-          for (let i = 0; i < neighbors.length; i++) {
-            neighbor = neighbors[i];
-            console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
+          neighbors.forEach((neighbor) => {
             if (!neighbor.classList.contains('flagged')) {
-              if (!is_auto_game) { // interactive game
-                console.log("hello");
-                if (!already_clicked) {
-                  console.log("hi");
+              if (!is_auto_game) {
+                if (!did_bot_click_already) { // interactive game
+                  console.log("bot did not click yet");
                   neighbor.click(); // the AI should open all other hidden neighbors
-                  return;
-                  already_clicked = true;
+                  console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
+                  did_bot_click_already = true;
                 }
               } else {
                 console.log("erm..");
                 neighbor.click(); // the AI should open all other hidden neighbors
               }
             }
-          }
-        //   neighbors.forEach((neighbor) => {
-        //     console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
-        //     if (!neighbor.classList.contains('flagged')) {
-        //       if (!is_auto_game) { // interactive game
-        //         console.log("hello");
-        //         if (!already_clicked) {
-        //           console.log("hi");
-        //           neighbor.click(); // the AI should open all other hidden neighbors
-        //           already_clicked = true;
-        //         }
-        //       } else {
-        //         console.log("erm..");
-        //         neighbor.click(); // the AI should open all other hidden neighbors
-        //       }
-        //     }
-        // });
+        });
         rule2_activation = true;
       }
     }
