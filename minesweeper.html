@@ -109,6 +109,7 @@ Source: Original, ChatGPT
   <input id="mineRange" type="range" min="10" max="20" value="10">
   <input id="mineNumber" type="number" min="10" max="20" value="10">
   <button id="startBtn">Start Game</button>
+  <button id="startAutoBtn">Auto Game</button>
   <button id="resetBtn" disabled>Reset</button>
   <label for="botSelect">Select Bot Difficulty</label>
   <select id="botSelect">
@@ -145,6 +146,7 @@ const minesEl  = document.getElementById('mines');
 const flagsEl  = document.getElementById('flags');
 const stateEl  = document.getElementById('state');
 const startBtn = document.getElementById('startBtn');
+const startAutoBtn = document.getElementById('startAutoBtn');
 const resetBtn = document.getElementById('resetBtn');
 const mineRange  = document.getElementById('mineRange');
 const mineNumber = document.getElementById('mineNumber');
@@ -163,6 +165,7 @@ let revealedCount = 0; // number of safe cells revealed
 let minePositions = new Set(); // storage for mine coordinates as strings
 let botClicking;
 let player_turn = 0;
+let is_auto_game = false;
 
 /* === Helpers === */
 // update game status display
@@ -335,9 +338,20 @@ function buildBoard() {
           cell.classList.add('revealed');
           player_turn++; // if all is working properly this should equal 1,3,5,7,9,... on users' clicks and vice versa for bots
 
-          //if (player_turn % 2 === 1) {
-            //setTimeout(botClick, 1000); // waits 1000ms, then bot takes turn
-          //}
+          console.log(is_auto_game);
+          console.log(player_turn);
+          if (!is_auto_game && (player_turn % 2 === 1)) {
+            const botDifficulty = document.getElementById("botSelect").value;
+            if (botDifficulty == "easy") {
+              setTimeout(easyBotClick, 1000); // waits 1000ms, then bot takes turn
+            }
+            else if (botDifficulty == "medium") {
+              setTimeout(mediumBotClick, 1000); // waits 1000ms, then bot takes turn
+            }
+            else if (botDifficulty == "hard") {
+              setTimeout(hardBotClick, 1000); // waits 1000ms, then bot takes turn
+            }
+          }
         }
       });
 
@@ -396,7 +410,8 @@ function resetGame() {
   startGame();
 }
 
-function startBotGame() {
+function startAutoGame() {
+  is_auto_game = true;
   startGame();
   const botDifficulty = document.getElementById("botSelect").value;
   if (botDifficulty == "easy") {
@@ -424,6 +439,7 @@ function easyBotClick() {
 }
 
 function mediumBotClick() { 
+  console.log("mediumBotClick");
   let revealed_cells = document.querySelectorAll('.cell.revealed');
   let rule1_activation = false;
   let rule2_activation = false;
@@ -449,7 +465,7 @@ function mediumBotClick() {
       if (neighbors.length == countAdjacentMines(row, col)) {
           neighbors.forEach((neighbor) => {
             if (!neighbor.classList.contains('flagged')) {
-              console.log(`Bot FLAGS cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1} `)
+              // console.log(`Bot FLAGS cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1} `)
               neighbor.classList.add('flagged','flag-icon');
               neighbor.textContent = '⚑'; // the AI should flag all hidden neighbors
               flagsPlaced++;
@@ -474,12 +490,41 @@ function mediumBotClick() {
 
       // Rule 2: If the number of flagged neighbors of a revealed cell equals that cell’s number
       if (flagged_neighbors.length == countAdjacentMines(row, col) && neighbors.length != flagged_neighbors.length) {
-          neighbors.forEach((neighbor) => {
+          let already_clicked = false; // used exclusively for interactive games
+          for (let i = 0; i < neighbors.length; i++) {
+            neighbor = neighbors[i];
             console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
             if (!neighbor.classList.contains('flagged')) {
-              neighbor.click(); // the AI should open all other hidden neighbors
+              if (!is_auto_game) { // interactive game
+                console.log("hello");
+                if (!already_clicked) {
+                  console.log("hi");
+                  neighbor.click(); // the AI should open all other hidden neighbors
+                  return;
+                  already_clicked = true;
+                }
+              } else {
+                console.log("erm..");
+                neighbor.click(); // the AI should open all other hidden neighbors
+              }
             }
-        });
+          }
+        //   neighbors.forEach((neighbor) => {
+        //     console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
+        //     if (!neighbor.classList.contains('flagged')) {
+        //       if (!is_auto_game) { // interactive game
+        //         console.log("hello");
+        //         if (!already_clicked) {
+        //           console.log("hi");
+        //           neighbor.click(); // the AI should open all other hidden neighbors
+        //           already_clicked = true;
+        //         }
+        //       } else {
+        //         console.log("erm..");
+        //         neighbor.click(); // the AI should open all other hidden neighbors
+        //       }
+        //     }
+        // });
         rule2_activation = true;
       }
     }
@@ -675,6 +720,7 @@ function hardBotClick() {
             //only click unflagged tiles
             if (!neighbor.classList.contains('flagged')) {
               neighbor.click(); // the AI should open all other hidden neighbors
+              return;
             }
           });
           rule2_activation = true;
@@ -685,6 +731,7 @@ function hardBotClick() {
     //random pick if rule 2 did not trigger
     if (!rule1_activation && !rule2_activation && !rule3_activation) {
       easyBotClick();
+      return;
     }
   }
 
@@ -713,7 +760,8 @@ mineNumber.addEventListener('input', () => {
   mineRange.value = v;
 });
 
-startBtn.addEventListener('click', startBotGame);
+startBtn.addEventListener('click', startGame);
+startAutoBtn.addEventListener('click', startAutoGame);
 resetBtn.addEventListener('click', resetGame);
 //startBotBtn.addEventListener('click', startBotGame);
 
