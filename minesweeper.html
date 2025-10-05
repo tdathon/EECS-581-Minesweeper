@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <!--
-Description: Single-file implementation of Mineseweeper with 10x10 gri, user-configurable mine count, and complete gameplay including mine flagging, recursive reveal, and win/loss detection.
-Authors: Ted Athon, Alec Slavik, Dylan O’Brien, Divit Kannan, Nick Reinig, Amrit Sian
+Description: Single-file implementation of Mineseweeper with 10x10 gri, user-configurable mine count, and complete gameplay including mine flagging, recursive reveal, and win/loss detection. Extensions include AI helpers and sound effects.
+Original Authors: Ted Athon, Alec Slavik, Dylan O’Brien, Divit Kannan, Nick Reinig, Amrit Sian
+Extension Authors: Daniel Butler, Charley Findling, Skylar Franz, Jack Gerety, Beckett Malinowski  
 Creation Date: 9/2/2025
 Course: EECS 581 Software Engineering II, Fall 2025
 
-Inputs: User mouse clicks (left reveal, right flag), mine count selection via slider/number input
+Inputs: User mouse clicks (left reveal, right flag), mine count selection via slider/number input, bot difficulty selector, reset button
 Outputs: Interactive game grid, status updates, win/loss detection notification
 Source: Original, ChatGPT
 -->
@@ -108,7 +109,15 @@ Source: Original, ChatGPT
   <input id="mineRange" type="range" min="10" max="20" value="10">
   <input id="mineNumber" type="number" min="10" max="20" value="10">
   <button id="startBtn">Start Game</button>
+  <button id="startAutoBtn">Auto Game</button>
   <button id="resetBtn" disabled>Reset</button>
+  <label for="botSelect">Select Bot Difficulty</label>
+  <select id="botSelect">
+    <option value="singleplayer">N/A</option>
+    <option value="easy">Easy</option>
+    <option value="medium">Medium</option>
+    <option value="hard">Hard</option>
+  </select>
 </div>
 
 <div id="status">
@@ -137,6 +146,7 @@ const minesEl  = document.getElementById('mines');
 const flagsEl  = document.getElementById('flags');
 const stateEl  = document.getElementById('state');
 const startBtn = document.getElementById('startBtn');
+const startAutoBtn = document.getElementById('startAutoBtn');
 const resetBtn = document.getElementById('resetBtn');
 const mineRange  = document.getElementById('mineRange');
 const mineNumber = document.getElementById('mineNumber');
@@ -153,6 +163,10 @@ let minesPlaced = false; // track if mines are randomly placed
 let gameOver = true; // game completion status
 let revealedCount = 0; // number of safe cells revealed
 let minePositions = new Set(); // storage for mine coordinates as strings
+let botClicking;
+let player_turn = 0;
+let is_auto_game = false;
+let did_bot_click_already = false;
 
 /* === Helpers === */
 // update game status display
@@ -257,6 +271,7 @@ function checkWin() {
     gameOver = true;
     setStatus('You won!', 'won');
     revealMines(); // optional: show where they were
+    clearInterval(botClicking);
   }
 }
 
@@ -280,6 +295,7 @@ function buildColumnLabels() {
 
 /* === Build / Reset === */
 function buildBoard() {
+  player_turn = 0;
   board.innerHTML = '';
   buildColumnLabels();
   
@@ -312,12 +328,33 @@ function buildBoard() {
           cell.classList.remove('covered');
           cell.classList.add('revealed','mine');
           cell.textContent = '💣';
+          clearInterval(botClicking);
+          const mine_sound = new Audio("sound-effects/kaboom.mp3");
+          mine_sound.play();
           gameOver = true;
           setStatus('Game over', 'lost');
           revealMines();
         } else {
           revealedCount += floodReveal(row, col);
           checkWin();
+          cell.classList.remove('covered');
+          cell.classList.add('revealed');
+          player_turn++; // if all is working properly this should equal 1,3,5,7,9,... on users' clicks and vice versa for bots
+
+          console.log(is_auto_game);
+          console.log(player_turn);
+          if (!is_auto_game && (player_turn % 2 === 1)) {
+            const botDifficulty = document.getElementById("botSelect").value;
+            if (botDifficulty == "easy") {
+              setTimeout(easyBotClick, 1000); // waits 1000ms, then bot takes turn
+            }
+            else if (botDifficulty == "medium") {
+              setTimeout(mediumBotClick, 1000); // waits 1000ms, then bot takes turn
+            }
+            else if (botDifficulty == "hard") {
+              setTimeout(hardBotClick, 1000); // waits 1000ms, then bot takes turn
+            }
+          }
         }
       });
 
@@ -334,6 +371,9 @@ function buildBoard() {
           cell.textContent = '⚑';
           flagsPlaced++;
         } else {
+          // basic sound effects template
+          const unflag_sound = new Audio("sound-effects/unflag.mp3");
+          unflag_sound.play();
           cell.classList.remove('flagged','flag-icon');
           cell.textContent = '';
           flagsPlaced--;
@@ -373,6 +413,329 @@ function resetGame() {
   startGame();
 }
 
+function startAutoGame() {
+  is_auto_game = true;
+  startGame();
+  const botDifficulty = document.getElementById("botSelect").value;
+  if (botDifficulty == "easy") {
+    botClicking = setInterval(easyBotClick, 500);
+  }
+  else if (botDifficulty == "medium") {
+    botClicking = setInterval(mediumBotClick, 1000);
+  }
+  else if (botDifficulty == "hard") {
+    botClicking = setInterval(hardBotClick, 1000);
+  }
+}
+
+function easyBotClick() {
+    let randomRow = Math.floor(Math.random() * 10);
+    let randomCol = Math.floor(Math.random() * 10);
+    let cell = document.querySelector(`.cell.covered[data-row="${randomRow}"][data-col="${randomCol}"]`);
+    if (cell && !cell.classList.contains('flagged')) {
+      console.log(`Bot RANDOM CLICKS cell in row ${parseInt(cell.dataset.row) + 1}, column ${parseInt(cell.dataset.col) + 1}`);
+      cell.click();
+    }
+    else {
+      easyBotClick();
+    }
+}
+
+function mediumBotClick() { 
+  let did_bot_click_already = false;
+
+  let revealed_cells = document.querySelectorAll('.cell.revealed');
+  let rule1_activation = false;
+  let rule2_activation = false;
+  revealed_cells.forEach(cell => {
+    if(cell.textContent != '') {
+      // console.log(`Bot CHECKS cell in row ${parseInt(cell.dataset.row) + 1}, column ${parseInt(cell.dataset.col) + 1}`);
+      const row = parseInt(cell.dataset.row);
+      const col = parseInt(cell.dataset.col);
+
+      // Gets all covered neighbors
+      let topLeft = document.querySelector(`.cell.covered[data-row="${row-1}"][data-col="${col-1}"]`);
+      let topMid = document.querySelector(`.cell.covered[data-row="${row-1}"][data-col="${col}"]`);
+      let topRight = document.querySelector(`.cell.covered[data-row="${row-1}"][data-col="${col+1}"]`);
+      let midLeft = document.querySelector(`.cell.covered[data-row="${row}"][data-col="${col-1}"]`);
+      let midRight = document.querySelector(`.cell.covered[data-row="${row}"][data-col="${col+1}"]`);
+      let bottomLeft = document.querySelector(`.cell.covered[data-row="${row+1}"][data-col="${col-1}"]`);
+      let bottomMid = document.querySelector(`.cell.covered[data-row="${row+1}"][data-col="${col}"]`);
+      let bottomRight = document.querySelector(`.cell.covered[data-row="${row+1}"][data-col="${col+1}"]`);
+      let neighbors = [topLeft, topMid, topRight, midLeft, midRight, bottomLeft, bottomMid, bottomRight];
+      neighbors = neighbors.filter(neighbor => neighbor !== null);  // Filter out neighbors that aren't there
+
+      // Rule 1: If the number of hidden neighbors of a revealed cell equals that cell’s number
+      if (neighbors.length == countAdjacentMines(row, col)) {
+          neighbors.forEach((neighbor) => {
+            if (!neighbor.classList.contains('flagged')) {
+              // console.log(`Bot FLAGS cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1} `)
+              neighbor.classList.add('flagged','flag-icon');
+              neighbor.textContent = '⚑'; // the AI should flag all hidden neighbors
+              flagsPlaced++;
+            }
+        });
+        rule1_activation = true;
+        //update flag counter
+        updateCounters();
+      }
+
+      // Get all flagged neighbors
+      topLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row-1}"][data-col="${col-1}"]`);
+      topMid = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row-1}"][data-col="${col}"]`);
+      topRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row-1}"][data-col="${col+1}"]`);
+      midLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row}"][data-col="${col-1}"]`);
+      midRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row}"][data-col="${col+1}"]`);
+      bottomLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row+1}"][data-col="${col-1}"]`);
+      bottomMid = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row+1}"][data-col="${col}"]`);
+      bottomRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row+1}"][data-col="${col+1}"]`);
+      let flagged_neighbors = [topLeft, topMid, topRight, midLeft, midRight, bottomLeft, bottomMid, bottomRight];
+      flagged_neighbors = flagged_neighbors.filter(neighbor => neighbor !== null);  // Filter out neighbors that aren't there
+
+      // Rule 2: If the number of flagged neighbors of a revealed cell equals that cell’s number
+      if (flagged_neighbors.length == countAdjacentMines(row, col) && neighbors.length != flagged_neighbors.length) {
+          neighbors.forEach((neighbor) => {
+            if (!neighbor.classList.contains('flagged')) {
+              if (!is_auto_game) { // interactive
+                if (!did_bot_click_already) { // interactive game
+                  neighbor.click(); // the AI should open all other hidden neighbors
+                  console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
+                  did_bot_click_already = true;
+                }
+              } else { // auto game
+                neighbor.click(); // the AI should open all other hidden neighbors
+              }
+            }
+        });
+        rule2_activation = true;
+      }
+    }
+  });
+
+  //If no rule applies, the AI should pick a random hidden cell.
+  if (!rule1_activation && !rule2_activation) {
+    easyBotClick();
+  }
+}
+
+function hardBotClick() {
+  let did_bot_click_already = false;
+
+  //1st run flags, 2nd run checks for rule 2, random pick otherwise
+    let rule1_activation = false;
+    let rule3_activation = false;
+    for (let row_index = 0; row_index < BOARD_SIZE; row_index++) {
+      //if we cannot place anymore flags down, flagging run is pointless
+      if (flagsPlaced >= minesTotal) break; // no more flags
+
+      for (let column_index = 0; column_index < BOARD_SIZE; column_index++) {
+
+        //Get tile with these coordinates
+        let current_cell = getCell(row_index, column_index);
+
+        //If this tile is not revealed yet, we can't check it -> skip
+        if (!current_cell.classList.contains("revealed")) {
+          continue;
+        }
+
+        //This section reachable iff tile is revealed
+
+        //Get all neighbors
+        let current_up_one = getCell(row_index - 1, column_index);
+        let current_up_left = getCell(row_index - 1, column_index - 1);
+        let current_up_right = getCell(row_index - 1, column_index + 1);
+        let current_left_one = getCell(row_index, column_index - 1);
+        let current_right_one = getCell(row_index, column_index + 1);
+        let current_down_one = getCell(row_index + 1, column_index);
+        let current_down_left = getCell(row_index + 1, column_index - 1);
+        let current_down_right = getCell(row_index + 1, column_index + 1);
+
+        //Check rule 1: if number of adjacent hidden tiles = revealed number, flag them all
+        //Don't break from loop
+        let neighbors = [current_up_left, current_up_one, current_up_right, current_left_one, current_right_one, current_down_left, current_down_one, current_down_right];
+        neighbors = neighbors.filter(neighbor => neighbor !== null);
+        neighbors = neighbors.filter(neighbor => neighbor.classList.contains("covered"));
+        if (neighbors.length == countAdjacentMines(row_index, column_index)) {
+          neighbors.forEach((neighbor) => {
+            if (!neighbor.classList.contains('flagged')) {
+              console.log(`Bot FLAGS cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1} `)
+              neighbor.classList.add('flagged','flag-icon');
+              neighbor.textContent = '⚑'; // the AI should flag all hidden neighbors
+              flagsPlaced++;
+            }
+          });
+          rule1_activation = true;
+          //update flag counter
+          updateCounters();
+        }
+        
+
+        //Check rule 3: 121 rule
+        //Don't break from loop
+        //CONCEPT: only check the 121 rule a 2 tile
+        //3.a: check for a 2 tile
+        if (current_cell.textContent == '2') {
+          //3.a.0 hopefully a bugfix for the case where there are more than 2 unrevealed corner squares around the 2
+          // count the number of unrevealed corners
+          let unrevealed_corners = 0;
+          if (current_up_left != null && !current_up_left.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (current_up_right != null && !current_up_right.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (current_down_left != null && !current_down_left.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (current_down_right != null && !current_down_right.classList.contains("revealed")) {
+            unrevealed_corners++;
+          }
+          if (unrevealed_corners > 2) {
+            continue;
+          }
+
+          //3.b: get a + shape with the current_cell as the center, set 121 statuses to false
+          let vertical_121 = false;
+          let horizontal_121 = false;
+
+          //3.c: check left and right exist and are revealed (check we aren't on the left or right bound of the grid)
+          if ((current_left_one != null && current_right_one != null) && (current_left_one.classList.contains("revealed") && current_right_one.classList.contains("revealed"))) {
+
+            //3.d check left and right tiles are 1s
+            if (current_right_one.textContent == '1' && current_left_one.textContent == '1') {
+              //indicate a 121 has been found
+              console.log(`horizontal 121 @ row ${row_index}, column ${column_index}`);
+              horizontal_121 = true;
+            }
+          }
+
+          //3.c: check up and down exist and are revealed (check we aren't on the top or bottom bound of the grid)
+          if ((current_up_one != null && current_down_one != null) && (current_up_one.classList.contains("revealed") && current_down_one.classList.contains("revealed"))) {
+
+            //3.d check left and right tiles are 1s
+            if (current_up_one.textContent == '1' && current_down_one.textContent == '1') {
+              //indicate a 121 has been found
+              console.log(`vertical 121 @ row ${row_index}, column ${column_index}`);
+              vertical_121 = true;
+            }
+          }
+
+          //3.e: if a 121 pattern has been detected flag the 4 corners of the 2 tile
+          if (vertical_121 || horizontal_121) {
+
+            //flag each corner if it exists, isn't revealed, and doesn't already contain a flag
+            if (current_up_left != null && !current_up_left.classList.contains("revealed") && !current_up_left.classList.contains('flagged')) {
+              current_up_left.classList.add('flagged','flag-icon');
+              current_up_left.textContent = '⚑';
+              flagsPlaced++;
+            }
+            if (current_up_right != null && !current_up_right.classList.contains("revealed") && !current_up_right.classList.contains('flagged')) {
+              current_up_right.classList.add('flagged','flag-icon');
+              current_up_right.textContent = '⚑';
+              flagsPlaced++;
+            }
+            if (current_down_left != null && !current_down_left.classList.contains("revealed") && !current_down_left.classList.contains('flagged')) {
+              current_down_left.classList.add('flagged','flag-icon');
+              current_down_left.textContent = '⚑';
+              flagsPlaced++;
+            }
+            if (current_down_right != null && !current_down_right.classList.contains("revealed") && !current_down_right.classList.contains('flagged')) {
+              current_down_right.classList.add('flagged','flag-icon');
+              current_down_right.textContent = '⚑';
+              flagsPlaced++;
+            }
+
+            rule3_activation = true;
+
+            //update flag counter
+            updateCounters();
+
+
+          }
+        }
+      }
+    }
+
+    //rule 2 run
+    let rule2_activation = false;
+    for (let row_index = 0; row_index < BOARD_SIZE; row_index++) {
+      for (let column_index = 0; column_index < BOARD_SIZE; column_index++) {
+
+        //Get tile with these coordinates
+        let current_cell = getCell(row_index, column_index);
+
+        //If this tile is not revealed yet, we can't check it -> skip
+        if (!current_cell.classList.contains("revealed")) {
+          continue;
+        }
+
+        //Get all neighbors
+        let current_up_one = getCell(row_index - 1, column_index);
+        let current_up_left = getCell(row_index - 1, column_index - 1);
+        let current_up_right = getCell(row_index - 1, column_index + 1);
+        let current_left_one = getCell(row_index, column_index - 1);
+        let current_right_one = getCell(row_index, column_index + 1);
+        let current_down_one = getCell(row_index + 1, column_index);
+        let current_down_left = getCell(row_index + 1, column_index - 1);
+        let current_down_right = getCell(row_index + 1, column_index + 1);
+        let neighbors = [current_up_left, current_up_one, current_up_right, current_left_one, current_right_one, current_down_left, current_down_one, current_down_right];
+        //filter out null tiles
+        neighbors = neighbors.filter(neighbor => neighbor !== null);
+        //limit neighbors to covered tiles
+        neighbors = neighbors.filter(neighbor => neighbor.classList.contains('covered'));
+
+        // Get all flagged neighbors
+        topLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index-1}"][data-col="${column_index-1}"]`);
+        topMid = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index-1}"][data-col="${column_index}"]`);
+        topRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index-1}"][data-col="${column_index+1}"]`);
+        midLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index}"][data-col="${column_index-1}"]`);
+        midRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index}"][data-col="${column_index+1}"]`);
+        bottomLeft = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index+1}"][data-col="${column_index-1}"]`);
+        bottomMid = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index+1}"][data-col="${column_index}"]`);
+        bottomRight = document.querySelector(`.cell.covered.flagged.flag-icon[data-row="${row_index+1}"][data-col="${column_index+1}"]`);
+        let flagged_neighbors = [topLeft, topMid, topRight, midLeft, midRight, bottomLeft, bottomMid, bottomRight];
+        flagged_neighbors = flagged_neighbors.filter(neighbor => neighbor !== null);  // Filter out neighbors that aren't there
+
+        //Check rule 2: if revealed number = number of adjacent flags, reveal unflagged hidden neighbors (if there are any)
+        //return if done
+        if (flagged_neighbors.length == countAdjacentMines(row_index, column_index) && flagged_neighbors.length != neighbors.length) {
+          neighbors.forEach((neighbor) => {
+            //only click unflagged tiles
+            if (!neighbor.classList.contains('flagged')) {
+              if (!is_auto_game) { // interactive
+                if (!did_bot_click_already) { // interactive game
+                  neighbor.click(); // the AI should open all other hidden neighbors
+                  console.log(`Bot CLICKS NEIGHBOR cell in row ${parseInt(neighbor.dataset.row) + 1}, column ${parseInt(neighbor.dataset.col) + 1}`);
+                  did_bot_click_already = true;
+                }
+              } else { // auto game
+                neighbor.click(); // the AI should open all other hidden neighbors
+              }
+            }
+          });
+          rule2_activation = true;
+        }
+      }
+    }
+
+    //random pick if rule 2 did not trigger
+    if (!rule1_activation && !rule2_activation && !rule3_activation) {
+      easyBotClick();
+    }
+  }
+
+// Disable clicking on board @TODO IMPLEMENT LATER WITH BOT PLAY MODE
+function clickBoard(setting) {
+  if (setting == "enable") {
+    board.style = "";
+  }
+  else if (setting == "disable") {
+    board.style = "pointer-events: none;"
+  botClicking = setInterval(botClick, 500);
+  //botClick();
+}
+}
+
 /* === Controls wiring === */
 mineRange.addEventListener('input', () => {
   mineNumber.value = mineRange.value;
@@ -387,7 +750,9 @@ mineNumber.addEventListener('input', () => {
 });
 
 startBtn.addEventListener('click', startGame);
+startAutoBtn.addEventListener('click', startAutoGame);
 resetBtn.addEventListener('click', resetGame);
+//startBotBtn.addEventListener('click', startBotGame);
 
 /* Initial UI (no game running yet) */
 setStatus('Not started');
@@ -395,3 +760,5 @@ updateCounters();
 </script>
 </body>
 </html>
+
+
